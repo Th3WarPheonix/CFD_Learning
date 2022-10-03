@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import sparse
 from scipy.sparse import linalg
+import time
 
 def gs_black(f, P, h, dt, w):
     # BLACK
@@ -173,7 +174,9 @@ def Poissona(N, h):
     
     tops = np.linspace(N, N*N-N, N-1)
     tops = np.delete(tops, -1) # removes unnecessary index
+    print(tops)
     for i in tops: # Horizontal wall cell corrections
+        i = int(i)
         A[i, i] = -3 # Top
         A[i, i-1] = 0 # No reference above top
         A[i+N-1, i+N-1] = -3 # Bottom
@@ -542,8 +545,8 @@ def main(Re, N):
     res = np.array([])
     resi = 1
     i = 0
-    #while resi > 1e-5:
-    while i < 5:
+    while resi > 1e-5:
+    #while i < 5:
         ghost_vel(U, V, uwall)
         #print('g u\n', np.around(U, 4))
         #print('g v\n', np.around(V, 4))
@@ -555,8 +558,8 @@ def main(Re, N):
         update1(U, V, F, G, Hx, Hy, h, dt, N)
         #print('1 u\n', np.around(U, 4))
         #print('1 v\n', np.around(V, 4))
-        #P = solve_poisson(A, U, V, h, dt, N)
-        gauss_seidel(U, V, P, h, dt, N)
+        P = solve_poisson(A, U, V, h, dt, N)
+        #gauss_seidel(U, V, P, h, dt, N)
         #print('P')
         #print(P)
         update2(U, V, P, h, dt, N)
@@ -565,14 +568,15 @@ def main(Re, N):
                 b = U[ii+2][jj+1]-U[ii+1][jj+1]
                 c = V[ii+1][jj+2]-V[ii+1][jj+1]
                 f[ii][jj] = b+c
-        print(f)
+        #print(f)
         #print('2 u\n', np.around(U, 4))
         #print('2 v\n', np.around(V, 4))
         resi, resj = residual(F, G, Hx, Hy, P, h, N)
         res = np.append(res, resi+resj)
-        resi = resi+resj
-        print(i, res[i])
+        res2 = resi+resj
+        print(i, res2)
         i += 1
+        
     
     plt.semilogy(np.linspace(0, i, i), res, label='Residual')
     plt.ylabel('Residual')
@@ -587,8 +591,8 @@ def main(Re, N):
     plot_psi(U, V, h, N)
 
 if __name__ == '__main__':
-    Re = 100
-    N = 32
+    Re = 1000
+    N = 64
     main(Re, N)
 
     '''Re = 400
