@@ -1,4 +1,3 @@
-# Austin Ryan
 
 import numpy as np
 import numpy.linalg as npla
