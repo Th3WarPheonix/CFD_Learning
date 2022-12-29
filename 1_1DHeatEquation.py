@@ -6,7 +6,7 @@ from scipy.sparse import linalg
 def heat1d_fd(L: float, kappa: float, N: int, boundary: str='d', T0: float=None, TL: float=None, slope: float=None):
     """
     Sets up and solves the steady one-dimensional heat conduction equation through the use of a spare matrix with a first order central differencing scheme\n
-    One dimensional heat equation: -kappa*(dT/dx)^2=q; => -(dT)^2=q(dx)^2/kappa; => TL-2T+TR=q(dx)^2/kappa; TL is node to the left and TR is node to the right\n
+    One dimensional heat equation: -kappa*(dT/dx)^2=q; => -(TL-2T+TR)=q(dx)^2/kappa; => -TL+2T-TR=q(dx)^2/kappa; TL is node to the left and TR is node to the right\n
     The matrix equation we are solving is AT=q from \n
         \twhere A is a square NxN matrix of the coefficient matrix defined by the equation and discretization we are using\n
         \twhere T is a column Nx1 matrix of the unknowns of the points in order from left to right\n

@@ -22,7 +22,7 @@ def source(x, y, Lx, Ly, kappa):
 
 def heat2d(Lx, Ly, Nx, Ny, kappa):
     """Setting up and solvin the 2D heat equation with matrices AT=q
-    (TL-T+TR)/dx^2 + (TU-T+TD)/dx^2 = -q/kappa"""
+    (TL-2T+TR)/dx^2 + (TU-2T+TD)/dx^2 = -q/kappa"""
     dx = float(Lx)/Nx # x spacing
     dy = float(Ly)/Ny # y spacing
     x = np.linspace(0, Lx, Nx+1) # x nodes
