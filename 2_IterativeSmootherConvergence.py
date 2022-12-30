@@ -52,7 +52,11 @@ def main():
     """
     Background
     ----------
-    This is an exercise to show the rate of convergence of these iterative smoother methods by analysing the eigenvalues of the iteration matrices. In actual use the matrices are never formed because that defeats the purpose of using smoother, which is saving time and space, over driect solvers using matrix operations. We are trying to solve the same matrix equation Au = f. A can be decomposed into A = D + L + U where D is only the main diagonal, L is everything below the main diagonal, lower triangular portion, U is everything above the main diagonal, upper triangular portion. D can be thought of the current node in the iteration, L contains all previously iterated upon nodes, U is all nodes not already iterated upon. un1 is the state of the node at the next time step and un is the state of the node at the current time step. Eigenvalues below 1 mean a faster convergence, 1 is no convergence, and above 1 means the solutiuon will never converge and the error will grow exponentially fast away from the solution. Solution convergence rate is dominated by the largest eigenvalue. Smoothers by themselves only become better than direct solvers in 3D and are comparable in 2D and are slower in 1D.
+    This is an exercise to show the rate of convergence of these iterative methods by analysing the eigenvalues of the iteration matrices.
+    In actual use the matrices are never formed because that defeats the purpose of using iterative methods, which is saving time and space, over driect solvers using matrix operations.
+    We are trying to solve the same matrix equation Au = f. A can be decomposed into A = D + L + U where D is only the main diagonal, L is everything below the main diagonal, lower triangular portion, U is everything above the main diagonal, upper triangular portion.
+    D can be thought of the current node in the iteration, L contains all previously iterated upon nodes, U is all nodes not already iterated upon. un1 is the state of the node at the next time step and un is the state of the node at the current time step.
+    Eigenvalues below 1 mean a faster convergence, 1 is no convergence, and above 1 means the solutiuon will never converge and the error will grow exponentially fast away from the solution. Solution convergence rate is dominated by the largest eigenvalue. Iterative methods by themselves only become better than direct solvers in 3D and are comparable in 2D and are slower in 1D.
     
     Current Example
     ---------------
