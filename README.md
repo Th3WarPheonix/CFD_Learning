@@ -1,2 +1,2 @@
 # CFD_Learning
-Practicing CFD techniques, algorithm, etc.
+Practicing CFD techniques, algorithms, general numerical methods, etc.
