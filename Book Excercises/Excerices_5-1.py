@@ -8,9 +8,11 @@ un  is the value of the node at the current time step
 CFL = cdt/dx"""
 
 def explicit_backward(value_array, CFL_num, time_steps):
+    uns = np.copy(value_array)
+    un1s = np.copy(value_array)
     for t in range(time_steps):
-        for i, un in enumerate(value_array):
-            un1 = un - CFL_num
+        for i, uni in enumerate(uns):
+            un1s[i] = uni - CFL_num
 
 def explicit_forward(CFL_num):
     pass
