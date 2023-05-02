@@ -101,7 +101,7 @@ def maccormack_method(domain_array, value_array, CFL_num, time_steps):
 
     return un1s
 
-def jameson_method(domain_array, value_array, CFL_num, time_steps):
+def jameson_method(domain_array, value_array, CFL_num, time_steps, deltat, deltax, advection_coeff):
     uns  = np.copy(value_array)
     un1s = np.copy(value_array)
     alpha = [1/4, 1/3, 1/2, 1]
@@ -113,10 +113,14 @@ def jameson_method(domain_array, value_array, CFL_num, time_steps):
             NEXT_VALUE    = uns[i+1]
             
             unk0 = uns[i]
-            unk1 = CURRENT_VALUE - 1/4*CFL_num*unk0
-            unk2 = CURRENT_VALUE - 1/3*CFL_num*(unk1-unk0)
-            unk3 = CURRENT_VALUE - 1/2*CFL_num*(unk2-unk1)
-            unk4 = CURRENT_VALUE - 1/1*CFL_num*(unk3-unk2)
+            # unk1 = CURRENT_VALUE - 1/4*CFL_num*unk0
+            # unk2 = CURRENT_VALUE - 1/3*CFL_num*(unk1-unk0)
+            # unk3 = CURRENT_VALUE - 1/2*CFL_num*(unk2-unk1)
+            # unk4 = CURRENT_VALUE - 1/1*CFL_num*(unk3-unk2)
+            unk1 = (unk0+deltat/2*unk0*advection_coeff)
+            
+            
+            unk4 = unk0 + deltat/6*(unk0+2*unk1+2*unk2+unk3)
         
             un1s[i] = unk4
         uns = np.copy(un1s)
@@ -183,12 +187,12 @@ def main():
     values_lx = lax_method(domain, values_ic, CFL_num, time_steps)
     values_lw = lax_wendroff(domain, values_ic, CFL_num, time_steps)
     values_mc = maccormack_method(domain, values_ic, CFL_num, time_steps)
-    values_jm = jameson_method(domain, values_ic, CFL_num, time_steps)
+    values_jm = jameson_method(domain, values_ic, CFL_num, time_steps, deltat, deltax, advection_coeff)
     values_wb = warming_beam(domain, values_ic, CFL_num, time_steps)
     values_up = upwind_method(domain, values_ic, CFL_num, time_steps)
 
     CFL_num = 2
-    values_jm2 = jameson_method(domain, values_ic, CFL_num, time_steps)
+    values_jm2 = jameson_method(domain, values_ic, CFL_num, time_steps, deltat, deltax, advection_coeff)
     values_wb2 = warming_beam(domain, values_ic, CFL_num, time_steps)
 
 
