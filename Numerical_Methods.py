@@ -65,3 +65,6 @@ def conjugategradient_precon(A, b, M, precision=1e-10):
         residuals.append(np.sqrt(np.sum(residual**2)/len(residual))/bnorm)
 
     return xi, residuals
+
+def thomas_algorithm():
+    pass
