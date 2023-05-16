@@ -1,6 +1,5 @@
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 def norm2(v):
     return np.sqrt(np.sum(v**2)/len(v))
@@ -108,62 +107,3 @@ def solve_tridiagonal(n:int, A, B, C, D):
         X[i] = R[i] - G[i]*X[i+1]
 
     return X
-
-def runge_kutta4(fun, dt:float, time, y0:float):
-    """ODE integration using 4th-order Runge-Kutta
-
-    Parameters
-    ----------
-    fun  : ODE to be integrated, if function is vector function y0 and function output must be a single row i.e. [1, 2, 3, ...], not [[1], [2], [3], ...]
-    dt   : time step
-    time : array of evenly spaced time intervals
-    y0   : initial condition
-    """
-
-    yfinal = np.empty((len(y0), len(time)))
-    yfinal[:, 0] = y0
-    for i, t in enumerate(time):
-        f1 = fun(t, y0)
-        f2 = fun(t + dt / 2, y0 + (dt / 2) * f1)
-        f3 = fun(t + dt / 2, y0 + (dt / 2) * f2)
-        f4 = fun(t + dt, y0 + dt * f3)
-        yfinal[:, i] = y0 + (dt / 6) * (f1 + 2 * f2 + 2 * f3 + f4)
-        y0 = yfinal[:, i]
-    return yfinal
-
-def lorenz(t, y):
-    """
-        This function defines the dynamical equations
-        that represent the Lorenz system. 
-        
-        Normally we would need to pass the values of
-        sigma, beta, and rho, but we have already defined them
-        globally above.
-    """
-    sigma = 10
-    beta = 8 / 3
-    rho = 28
-    # y is a three dimensional state-vector
-    dy = [
-        sigma * (y[1] - y[0]), 
-        y[0] * (rho - y[2]) - y[1],
-        y[0] * y[1] - beta * y[2]]
-    return np.array(dy)
-
-def main():
-    # Initial condition
-    y0 = [-8, 8, 25]
-
-    # Compute trajectory 
-    dt = 0.01
-    T = 10
-    num_time_pts = int(T / dt)
-    t = np.linspace(0, T, num_time_pts)
-
-    yin = y0
-    yout = runge_kutta4(lorenz, dt, t, yin)
-    ax = plt.figure().add_subplot(projection='3d')  # make a 3D plot
-    ax.plot(yout[0, :], yout[1, :], yout[2, :], 'b')
-    plt.show()
-if __name__ == '__main__':
-    main()
