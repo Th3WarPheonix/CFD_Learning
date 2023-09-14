@@ -81,7 +81,9 @@ def conjugategradient_precon(A, b, M, precision=1e-10):
     return xi, residuals
 
 def solve_tridiagonal(n:int, A, B, C, D):
-    """Solves tridiagonal matrix using Thomas algorithm in O(n) time
+    """Solves tridiagonal matrix using the Thomas algorithm in O(n) time
+    All vectors should be the same length. The last element of A and C
+    are not used.
     
     Parameters
     ----------
@@ -98,7 +100,7 @@ def solve_tridiagonal(n:int, A, B, C, D):
     G[0] = C[0]/B[0]
     R[0] = D[0]/B[0]
 
-    for i in range(1,n-1):
+    for i in range(1, n-1):
         G[i] = C[i]/(B[i] - A[i-1]*G[i-1])
         R[i] = (D[i] - A[i-1]*R[i-1]) / (B[i] - A[i-1]*G[i-1])
     R[i+1] = (D[i+1] - A[i]*R[i]) / (B[i+1] - A[i]*G[i])
@@ -107,3 +109,26 @@ def solve_tridiagonal(n:int, A, B, C, D):
         X[i] = R[i] - G[i]*X[i+1]
 
     return X
+
+def guass_seidel(n:int, A, B, C, D):
+    """Solves sparse banded matrices using the Gauss-Seidel method
+    
+    Parameters
+    ----------
+    n : size of square array
+    A : lower diagonal of coefficient matrix
+    B : main  diagonal of coefficient matrix
+    C : upper diagonal of coefficient matrix
+    D : the known vector"""
+
+
+    X = np.empty_like(D) # initial guess
+
+    for i in range(n):
+        pass
+
+def main():
+    pass
+
+if __name__ == '__main__':
+    main()
