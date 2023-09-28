@@ -32,6 +32,35 @@ def solve_tridiagonal(n:int, A, B, C, D):
 
     return X
 
+def stretch_mesh(dymin, ymax, numpts):
+    """
+    Implements Rakich Stretching function on pg 78 (section 5.3.1).
+    Function returns points assuming a stretch from 0 to ymax
+
+    Parameters
+    ----------
+    dymin : smallest y2-y1 distance from which point spacing will only
+    increase
+    ymax : distnace over which the stretch occurs
+    numpts : number of points in stretch
+    """
+    ys = np.zeros(numpts)
+
+    kold = 0
+    knew = 1
+    a = 1/(numpts-1)
+    while abs(kold - knew) > 1e-6:
+        kold = knew
+        fcn = dymin - ymax*(np.exp(kold*a)-1)/(np.exp(kold)-1)
+        dfcn = -ymax*((a-1)*np.exp(a*kold+kold)-a*np.exp(a*kold)+np.exp(kold))/(np.exp(kold)-1)**2
+        knew = kold - fcn/dfcn
+
+    for j in range(1, numpts):
+        a = (j+1-1)/(numpts-1)
+        ys[j] = ys[0] + ymax*(np.exp(kold*a)-1)/(np.exp(kold)-1)
+
+    return ys
+
 def implicit_central(value_array, CFL_num, time_steps):
     uns  = np.copy(value_array)
     n = len(uns)
