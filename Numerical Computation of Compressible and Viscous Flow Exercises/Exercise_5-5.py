@@ -408,6 +408,52 @@ def ADI(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vinf, dymin, fai
         print('ADI Elapsed Time: {:.3}'.format(elapsed_time))
     return residualadi
 
+def get_streamfcn(phi, xpts, ypts):
+    # TODO make this work
+    psi = np.zeros_like(phi)
+    psi2 = np.zeros_like(phi)
+    v = np.zeros_like(phi)
+    u = np.zeros_like(phi)
+    nypts = len(ypts)
+    nxpts = len(xpts)
+
+    for i in range(1, nxpts-1): # move across columns
+        for j in range(1, nypts-1): # move through columns
+            v[j, i] = (phi[j+1, i] - phi[j-1, i])/(ypts[j+1] - ypts[j-1])
+            u[j, i] = (phi[j, i+1] - phi[j, i-1])/(xpts[i+1] - xpts[i-1])
+
+    for i in range(1, nxpts-1):
+        # bottom boundary
+        u[0, i] = (phi[0, i+1] - phi[0, i-1])/(xpts[i+1] - xpts[i-1])
+        v[0, i] = (phi[0, i] - phi[1, i])/(ypts[0] - ypts[1])
+        # top boundary
+        u[-1, i] = (phi[-1, i+1] - phi[-1, i-1])/(xpts[i+1] - xpts[i-1])
+        v[-1, i] = (phi[-1, i] - phi[-2, i])/(ypts[-1] - ypts[-2])
+
+    for j in range(nxpts-1):
+        # bottom boundary
+        u[0, i] = (phi[0, i+1] - phi[0, i-1])/(xpts[i+1] - xpts[i-1])
+        v[0, i] = (phi[0, i] - phi[1, i])/(ypts[0] - ypts[1])
+        # top boundary
+        u[-1, i] = (phi[-1, i+1] - phi[-1, i-1])/(xpts[i+1] - xpts[i-1])
+        v[-1, i] = (phi[-1, i] - phi[-2, i])/(ypts[-1] - ypts[-2])
+        
+    for i in range(1, nxpts-1):
+        for j in range(nypts-1):
+            psi[j, i] = psi[j, i-1]-v[j+1, i]*(ypts[j+1] - ypts[j])
+            psi2[j, i] = psi2[j, i-1]-v[j+1, i]*(xpts[i+1] - xpts[i])
+
+    print(psi)
+    plt.contour(xpts, ypts, u-u[0,0], cmap='coolwarm')
+    # plt.contour(xpts, ypts, v)
+    #plt.clabel(cont, inline=2, colors='k', manual=False)
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.grid()
+    plt.tick_params(axis='both', labelsize=12)
+    plt.colorbar(orientation='vertical').set_label('Streamfunction Values (\u03A8)')
+    plt.show()
+
 def main():
     chord = 1
     thickness = .06 # times the chord th = .06c
@@ -433,9 +479,6 @@ def main():
     xpts2 = np.linspace(0, chord, ptsx2) # on airfoil
     xpts3 = stretch_mesh(dxmin, xmax, ptsx) + 1 # behind airfoil
     xpts = np.hstack((xpts1[0:-1], xpts2, xpts3[1:]))
-
-    # xpts = np.linspace(0, 1, ptsx2)
-    # ypts = np.linspace(0, ymax, ptsy)
 
     pinf = 1
     densityinf = 1
@@ -464,19 +507,19 @@ def main():
     plt.close()
     # plt.show()
 
-    time_steps = 1000
+    time_steps = 200
     residualpjc, phif = point_jacobi(time_steps, Minf, xpts, ypts, phipjc, phipjc2, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
     residualpgs = point_guass_seidel(time_steps, Minf, xpts, ypts, phipgs, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
     residualljc, phif2 = line_jacobi(time_steps, Minf, xpts, ypts, philjc, philjc2, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
     residuallgs = line_guass_seidel(time_steps, Minf, xpts, ypts, philgs, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
     residualadi = ADI(time_steps, Minf, xpts, ypts, phiadi, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
 
-    # For use to validate Prandtly-Glauert correction
-    # TODO Make this replicate book results
-    Minf2 = .01
-    ainf2 = np.sqrt(gamma*pinf/densityinf)
-    Vinf2 = Minf2*ainf2
-    residualpgc = line_guass_seidel(time_steps, Minf2, xpts, ypts, phipgc, xpts1, xpts2, xpts3, Vinf2, dymin, fairf, chord, timing=True)
+    # # For use to validate Prandtly-Glauert correction
+    # # TODO Make this replicate book results
+    # Minf2 = .01
+    # ainf2 = np.sqrt(gamma*pinf/densityinf)
+    # Vinf2 = Minf2*ainf2
+    # residualpgc = line_guass_seidel(time_steps, Minf2, xpts, ypts, phipgc, xpts1, xpts2, xpts3, Vinf2, dymin, fairf, chord, timing=True)
 
     u_pjc = np.zeros_like(xpts)
     u_pgs = np.zeros_like(xpts)
@@ -512,9 +555,9 @@ def main():
     cp_ljc = 2*(pressure_ljc-pinf)/densityinf/Vinf**2
     cp_lgs = 2*(pressure_lgs-pinf)/densityinf/Vinf**2
     cp_adi = 2*(pressure_adi-pinf)/densityinf/Vinf**2
-    cp_pgc0 = -(u_pgc-Vinf2)/Vinf2
-    cp_pgc02 = cp_lgs*np.sqrt(1-Minf**2)
-    cp_pgcM = cp_pgc0/np.sqrt(1-Minf2**2)
+    # cp_pgc0 = -(u_pgc-Vinf2)/Vinf2
+    # cp_pgc02 = cp_lgs*np.sqrt(1-Minf**2)
+    # cp_pgcM = cp_pgc0/np.sqrt(1-Minf2**2)
     plt.plot(xpts, -cp_pjc, marker='.', label='pjc')
     plt.plot(xpts, -cp_pgs, marker='+', label='pgs')
     plt.plot(xpts, -cp_ljc, marker='o', label='ljc')
@@ -530,7 +573,7 @@ def main():
     plt.legend()
     plt.savefig('Exercise 5.5 Cps.png')
     plt.close()
-    # plt.show()
+    plt.show()
 
     # sc = plt.scatter(xv, yv, c=phiadi[:, :len(xpts)])#, vmin=-30, vmax=30)
     # plt.plot(x, y)
@@ -546,9 +589,8 @@ def main():
     plt.semilogy(np.linspace(0, time_steps-1, time_steps), residuallgs, label='lgs', linestyle='-')
     plt.semilogy(np.linspace(0, time_steps-1, time_steps), residualadi, label='adi', linestyle='-')
     plt.legend()
-    plt.savefig('Exercise 5.5 Residuals.png')
+    # plt.savefig('Exercise 5.5 Residuals.png')
     plt.close()
-    # plt.show()
-
+    plt.show()
 if __name__ == '__main__':
     main()
