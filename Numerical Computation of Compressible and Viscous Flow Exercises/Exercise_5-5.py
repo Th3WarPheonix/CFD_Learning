@@ -207,6 +207,8 @@ def line_jacobi(time_steps, Minf, xpts, ypts, phi, phi2, xpts1, xpts2, xpts3, Vi
     return residualljc, phi
 
 def line_guass_seidel(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=False):
+    """Solves one column of points at a time using the Guass-Seidel method"""
+
     bigA = 1 - Minf**2
 
     array_len = len(ypts)
@@ -508,11 +510,11 @@ def main():
     # plt.show()
 
     time_steps = 200
-    residualpjc, phif = point_jacobi(time_steps, Minf, xpts, ypts, phipjc, phipjc2, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
-    residualpgs = point_guass_seidel(time_steps, Minf, xpts, ypts, phipgs, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
-    residualljc, phif2 = line_jacobi(time_steps, Minf, xpts, ypts, philjc, philjc2, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
+    # residualpjc, phif = point_jacobi(time_steps, Minf, xpts, ypts, phipjc, phipjc2, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
+    # residualpgs = point_guass_seidel(time_steps, Minf, xpts, ypts, phipgs, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
+    # residualljc, phif2 = line_jacobi(time_steps, Minf, xpts, ypts, philjc, philjc2, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
     residuallgs = line_guass_seidel(time_steps, Minf, xpts, ypts, philgs, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
-    residualadi = ADI(time_steps, Minf, xpts, ypts, phiadi, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
+    # residualadi = ADI(time_steps, Minf, xpts, ypts, phiadi, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
 
     # # For use to validate Prandtly-Glauert correction
     # # TODO Make this replicate book results
@@ -521,59 +523,59 @@ def main():
     # Vinf2 = Minf2*ainf2
     # residualpgc = line_guass_seidel(time_steps, Minf2, xpts, ypts, phipgc, xpts1, xpts2, xpts3, Vinf2, dymin, fairf, chord, timing=True)
 
-    u_pjc = np.zeros_like(xpts)
-    u_pgs = np.zeros_like(xpts)
-    u_ljc = np.zeros_like(xpts)
-    u_lgs = np.zeros_like(xpts)
-    u_adi = np.zeros_like(xpts)
-    v_pjc = np.zeros_like(xpts)
-    v_pgs = np.zeros_like(xpts)
-    v_ljc = np.zeros_like(xpts)
-    v_lgs = np.zeros_like(xpts)
-    v_adi = np.zeros_like(xpts)
-    u_pgc = np.zeros_like(xpts)
-    for i in range(1, len(xpts)-1):
-        u_pjc[i] = (phif[0, i+1] - phif[0, i-1])/(xpts[i+1] - xpts[i-1])
-        u_pgs[i] = (phipgs[0, i+1] - phipgs[0, i-1])/(xpts[i+1] - xpts[i-1])
-        u_ljc[i] = (phif2[0, i+1] - phif2[0, i-1])/(xpts[i+1] - xpts[i-1])
-        u_lgs[i] = (philgs[0, i+1] - philgs[0, i-1])/(xpts[i+1] - xpts[i-1])
-        u_adi[i] = (phiadi[0, i+1] - phiadi[0, i-1])/(xpts[i+1] - xpts[i-1])
-        v_pjc[i] = (phif[0, i] - phif[1, i])/(ypts[0] - ypts[1])
-        v_pgs[i] = (phipgs[0, i] - phipgs[1, i])/(ypts[0] - ypts[1])
-        v_ljc[i] = (phif2[0, i] - phif2[1, i])/(ypts[0] - ypts[1])
-        v_lgs[i] = (philgs[0, i] - philgs[1, i])/(ypts[0] - ypts[1])
-        v_adi[i] = (phiadi[0, i] - phiadi[1, i])/(ypts[0] - ypts[1])
-        u_pgc[i] = (phipgc[0, i+1] - phipgc[0, i-1])/(xpts[i+1] - xpts[i-1])
+    # u_pjc = np.zeros_like(xpts)
+    # u_pgs = np.zeros_like(xpts)
+    # u_ljc = np.zeros_like(xpts)
+    # u_lgs = np.zeros_like(xpts)
+    # u_adi = np.zeros_like(xpts)
+    # v_pjc = np.zeros_like(xpts)
+    # v_pgs = np.zeros_like(xpts)
+    # v_ljc = np.zeros_like(xpts)
+    # v_lgs = np.zeros_like(xpts)
+    # v_adi = np.zeros_like(xpts)
+    # u_pgc = np.zeros_like(xpts)
+    # for i in range(1, len(xpts)-1):
+    #     u_pjc[i] = (phif[0, i+1] - phif[0, i-1])/(xpts[i+1] - xpts[i-1])
+    #     u_pgs[i] = (phipgs[0, i+1] - phipgs[0, i-1])/(xpts[i+1] - xpts[i-1])
+    #     u_ljc[i] = (phif2[0, i+1] - phif2[0, i-1])/(xpts[i+1] - xpts[i-1])
+    #     u_lgs[i] = (philgs[0, i+1] - philgs[0, i-1])/(xpts[i+1] - xpts[i-1])
+    #     u_adi[i] = (phiadi[0, i+1] - phiadi[0, i-1])/(xpts[i+1] - xpts[i-1])
+    #     v_pjc[i] = (phif[0, i] - phif[1, i])/(ypts[0] - ypts[1])
+    #     v_pgs[i] = (phipgs[0, i] - phipgs[1, i])/(ypts[0] - ypts[1])
+    #     v_ljc[i] = (phif2[0, i] - phif2[1, i])/(ypts[0] - ypts[1])
+    #     v_lgs[i] = (philgs[0, i] - philgs[1, i])/(ypts[0] - ypts[1])
+    #     v_adi[i] = (phiadi[0, i] - phiadi[1, i])/(ypts[0] - ypts[1])
+    #     u_pgc[i] = (phipgc[0, i+1] - phipgc[0, i-1])/(xpts[i+1] - xpts[i-1])
 
-    pressure_pjc = pinf*(1-(gamma-1)/2*Minf**2*((u_pjc**2+v_pjc**2)/Vinf**2-1))**(gamma/(gamma-1))
-    pressure_pgs = pinf*(1-(gamma-1)/2*Minf**2*((u_pgs**2+v_pgs**2)/Vinf**2-1))**(gamma/(gamma-1))
-    pressure_ljc = pinf*(1-(gamma-1)/2*Minf**2*((u_ljc**2+v_ljc**2)/Vinf**2-1))**(gamma/(gamma-1))
-    pressure_lgs = pinf*(1-(gamma-1)/2*Minf**2*((u_lgs**2+v_lgs**2)/Vinf**2-1))**(gamma/(gamma-1))
-    pressure_adi = pinf*(1-(gamma-1)/2*Minf**2*((u_adi**2+v_adi**2)/Vinf**2-1))**(gamma/(gamma-1))
-    cp_pjc = 2*(pressure_pjc-pinf)/densityinf/Vinf**2
-    cp_pgs = 2*(pressure_pgs-pinf)/densityinf/Vinf**2
-    cp_ljc = 2*(pressure_ljc-pinf)/densityinf/Vinf**2
-    cp_lgs = 2*(pressure_lgs-pinf)/densityinf/Vinf**2
-    cp_adi = 2*(pressure_adi-pinf)/densityinf/Vinf**2
-    # cp_pgc0 = -(u_pgc-Vinf2)/Vinf2
-    # cp_pgc02 = cp_lgs*np.sqrt(1-Minf**2)
-    # cp_pgcM = cp_pgc0/np.sqrt(1-Minf2**2)
-    plt.plot(xpts, -cp_pjc, marker='.', label='pjc')
-    plt.plot(xpts, -cp_pgs, marker='+', label='pgs')
-    plt.plot(xpts, -cp_ljc, marker='o', label='ljc')
-    plt.plot(xpts, -cp_lgs, marker='x', label='lgs')
-    plt.plot(xpts, -cp_adi, marker='s', label='adi')
-    # plt.plot(xpts, -cp_pgc0, label='M=0', linestyle='--')
-    # plt.plot(xpts, -cp_pgc02, label='M=02', linestyle='--')
-    # plt.plot(xpts, -cp_pgcM, label='M=0 P-G Correction', linestyle='--')
-    plt.xlim([xpts1[-3], xpts3[3]])
-    plt.ylim([-.35, .2])
-    plt.xlabel('x')
-    plt.ylabel('$-C_p$')
-    plt.legend()
-    plt.savefig('Exercise 5.5 Cps.png')
-    plt.close()
-    plt.show()
+    # pressure_pjc = pinf*(1-(gamma-1)/2*Minf**2*((u_pjc**2+v_pjc**2)/Vinf**2-1))**(gamma/(gamma-1))
+    # pressure_pgs = pinf*(1-(gamma-1)/2*Minf**2*((u_pgs**2+v_pgs**2)/Vinf**2-1))**(gamma/(gamma-1))
+    # pressure_ljc = pinf*(1-(gamma-1)/2*Minf**2*((u_ljc**2+v_ljc**2)/Vinf**2-1))**(gamma/(gamma-1))
+    # pressure_lgs = pinf*(1-(gamma-1)/2*Minf**2*((u_lgs**2+v_lgs**2)/Vinf**2-1))**(gamma/(gamma-1))
+    # pressure_adi = pinf*(1-(gamma-1)/2*Minf**2*((u_adi**2+v_adi**2)/Vinf**2-1))**(gamma/(gamma-1))
+    # cp_pjc = 2*(pressure_pjc-pinf)/densityinf/Vinf**2
+    # cp_pgs = 2*(pressure_pgs-pinf)/densityinf/Vinf**2
+    # cp_ljc = 2*(pressure_ljc-pinf)/densityinf/Vinf**2
+    # cp_lgs = 2*(pressure_lgs-pinf)/densityinf/Vinf**2
+    # cp_adi = 2*(pressure_adi-pinf)/densityinf/Vinf**2
+    # # cp_pgc0 = -(u_pgc-Vinf2)/Vinf2
+    # # cp_pgc02 = cp_lgs*np.sqrt(1-Minf**2)
+    # # cp_pgcM = cp_pgc0/np.sqrt(1-Minf2**2)
+    # plt.plot(xpts, -cp_pjc, marker='.', label='pjc')
+    # plt.plot(xpts, -cp_pgs, marker='+', label='pgs')
+    # plt.plot(xpts, -cp_ljc, marker='o', label='ljc')
+    # plt.plot(xpts, -cp_lgs, marker='x', label='lgs')
+    # plt.plot(xpts, -cp_adi, marker='s', label='adi')
+    # # plt.plot(xpts, -cp_pgc0, label='M=0', linestyle='--')
+    # # plt.plot(xpts, -cp_pgc02, label='M=02', linestyle='--')
+    # # plt.plot(xpts, -cp_pgcM, label='M=0 P-G Correction', linestyle='--')
+    # plt.xlim([xpts1[-3], xpts3[3]])
+    # plt.ylim([-.35, .2])
+    # plt.xlabel('x')
+    # plt.ylabel('$-C_p$')
+    # plt.legend()
+    # plt.savefig('Exercise 5.5 Cps.png')
+    # plt.close()
+    # plt.show()
 
     # sc = plt.scatter(xv, yv, c=phiadi[:, :len(xpts)])#, vmin=-30, vmax=30)
     # plt.plot(x, y)
@@ -583,14 +585,15 @@ def main():
     # # plt.close()
     # plt.show()
 
-    plt.semilogy(np.linspace(0, time_steps-1, time_steps), residualpjc, label='pjc', linestyle='--')
-    plt.semilogy(np.linspace(0, time_steps-1, time_steps), residualpgs, label='pgs', linestyle='-.')
-    plt.semilogy(np.linspace(0, time_steps-1, time_steps), residualljc, label='ljc', linestyle=':')
+    # plt.semilogy(np.linspace(0, time_steps-1, time_steps), residualpjc, label='pjc', linestyle='--')
+    # plt.semilogy(np.linspace(0, time_steps-1, time_steps), residualpgs, label='pgs', linestyle='-.')
+    # plt.semilogy(np.linspace(0, time_steps-1, time_steps), residualljc, label='ljc', linestyle=':')
     plt.semilogy(np.linspace(0, time_steps-1, time_steps), residuallgs, label='lgs', linestyle='-')
-    plt.semilogy(np.linspace(0, time_steps-1, time_steps), residualadi, label='adi', linestyle='-')
+    # plt.semilogy(np.linspace(0, time_steps-1, time_steps), residualadi, label='adi', linestyle='-')
     plt.legend()
     # plt.savefig('Exercise 5.5 Residuals.png')
-    plt.close()
+    # plt.close()
     plt.show()
+
 if __name__ == '__main__':
     main()
