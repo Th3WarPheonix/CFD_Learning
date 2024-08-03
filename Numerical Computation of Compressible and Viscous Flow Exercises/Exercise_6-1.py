@@ -2,173 +2,136 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from Method_DB import solve_tridiagonal, stretch_mesh
+import time
 
-def murman_cole(timesteps, Minf, xpts, ypts, phihat, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, gamma=1.4, timing=False):
-    """Solves the transonic small disturbance equations with the Muirman-Cole algorithm"""
+def calc_cp(phi, xpts, dy, Minf, type='full', gamma=1.4):
+    """Calculates the coefficient of pressure along 1 row of points
+    based on the potential equations.
+
+    Parameters
+    ----------
+    phi : the values of the potential for at least the row of points on 
+        the surface and the row of points above the surface
+    xpts : the array of x values
+    dy : the distance between the first row and second row of points (y[0]-y[1])
+    Minf : freestream Mach number
+    type : "full" for full potential, "small" for small disturbance
+    """
+    densityinf = 1
+    if type == 'full':
+        pinf = 1
+        ainf = np.sqrt(gamma*pinf/densityinf)
+        Vinf = Minf*ainf
+    else:
+        pinf = 1/gamma/Minf**2
+        Vinf = 1
+    
+    v = np.zeros_like(xpts)
+    u = np.zeros_like(xpts)
+    for i in range(1, len(xpts)-1):
+        v[i] = (phi[0, i] - phi[1, i])/dy
+        u[i] = (phi[0, i+1] - phi[0, i-1])/(xpts[i+1] - xpts[i-1])+Vinf
+
+    pressure = pinf*(1-(gamma-1)/2*Minf**2*((u**2+v**2)/Vinf**2-1))**(gamma/(gamma-1))
+    cp = 2*(pressure-pinf)/densityinf/Vinf**2
+    return cp
+
+def plot_residual(xpts, ypts, res, t=None):
+    """Plot residual
+    
+    Parameters
+    ----------
+    xpts : matrix of same size as residual of x values
+    ypts : matrix of same size as residual of y values
+    res : matrix of resdiual values
+    t : optionally make the time step the title of the figure"""
+    xv, yv = np.meshgrid(xpts, ypts)
+    sc = plt.scatter(xv, yv, c=res)
+    plt.colorbar(sc)
+    if t:
+        plt.title(f'{t} res')
+    else:
+        plt.title(f'Residual')
+    plt.show()
+
+def murman_cole(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, gamma=1.4, timing=False):
+    """Solves one column of points at a time using the Guass-Seidel method"""
 
     nypts = len(ypts)
     nxpts = len(xpts)
     nxpts1 = len(xpts1)
     nxpts2 = len(xpts2)
-    nxpts3 = len(xpts3)
 
-    A = np.ones(nypts) # phi[j-1]
-    B = np.ones(nypts) # phi[j]
-    C = np.ones(nypts) # phi[j+1]
-    D = np.ones(nypts) # known
+    # Solving one column of points at a time
+    A = np.zeros(nypts) # phi[i-1]
+    B = np.zeros(nypts) # phi[i]
+    C = np.zeros(nypts) # phi[i+1]
+    D = np.zeros(nypts) # known
 
-    residual = np.ones(timesteps)
-    res = np.zeros_like(phihat)
-    for t in range(timesteps):
-        # Zone 1 in front of the airfoil   
-        for i in range(1, nxpts1-1):
+    startlgs = time.time()
+    residual = np.ones(time_steps)
+    res = np.zeros_like(phi)
+    for t in range(time_steps):
+        
+        # Zone 1 in front of the airfoil
+        for i in range(1, nxpts-1): # move across columns
             xpts10 = 1/(xpts[i+1]-xpts[i])
             xpts11 = 1/(xpts[i+1]-xpts[i-1])
             xpts01 = 1/(xpts[i]-xpts[i-1])
             xpts02 = 1/(xpts[i]-xpts[i-2])
             xpts12 = 1/(xpts[i-1]-xpts[i-2])
 
-            for j in range(1, nypts-1):
+            for j in range(1, nypts-1): # move through columns
                 ypts10 = 1/(ypts[j+1]-ypts[j])
                 ypts11 = 1/(ypts[j+1]-ypts[j-1])
                 ypts01 = 1/(ypts[j]-ypts[j-1])
 
-                # subsonic
-                # Aij = A[i, j]
-                # muij = mu[i, j]
-                Aij = 1 - Minf**2 - (gamma+1)*Minf**2/Vinf*(phihat[i+1][j] - phihat[i-1][j])*xpts11
-                if Aij > 0:
-                    muij = 0
-                elif Aij < 0:
-                    muij = 1
+                bigA0 = 1 - Minf**2 - (gamma+1)*Minf**2/Vinf*(phi[j][i+1] - phi[j][i-1])*xpts11
+                bigA1 = 1 - Minf**2 - (gamma+1)*Minf**2/Vinf*(phi[j][i] - phi[j][i-2])*xpts02
+                if bigA0 > 0:
+                    mu0 = 0
+                elif bigA0 <= 0:
+                    mu0 = 1
 
-                # supersonic (DONT USE at i=1 index [i-2] will be negative)\
-                # Aij1 = A[i-1, j]
-                # muij1 = mu[i-1, j]
-                Aij1 = 1 - Minf**2 - (gamma+1)*Minf**2/Vinf*(phihat[i][j] - phihat[i-2][j])*xpts02
-                if Aij1 > 0: # subsonic
-                    muij1 = 0
-                elif Aij1 < 0: # supersonic
-                    muij1 = 1
-                
-                muij = 0
-                muij1 = 0
+                if bigA1 > 0:
+                    mu1 = 0
+                elif bigA1 <= 0:
+                    mu1 = 1
 
-                A[j-1] = ypts10*ypts11
-                B[j] = (muij-1)*Aij*(xpts10 + xpts01)*xpts11 + muij1*Aij1*xpts01*xpts02 - ypts10*ypts11 - ypts01*ypts11
-                C[j] = ypts01*ypts11
-                D[j] = (muij-1)*Aij*xpts11*(phihat[i+1][j]*xpts10 + phihat[i-1][j]*xpts01) - muij1*Aij1*xpts02*(-phihat[i-1][j]*xpts01 + (-phihat[i-1][j]+phihat[i-2][j])*xpts12)
+                # Dealing with the y-terms first since always present
+                A[j-1] = -ypts01 * ypts11
+                B[j] = ypts11 * (ypts10 + ypts01)
+                C[j] = -ypts10 * ypts11
+                D[j] = 0
 
-            C[0] = -1 # bottom boundary condition
-            B[0] = 1 # bottom boundary condition
-            D[0] = 0 # bottom boundary condition
-            A[-2] = 0 # top boundary condition
-            B[-1] = 1 # top boundary condition
-            D[-1] = phihat[i, -1] # top boundary condition
-            # print('A', A)
-            # print('b', B)
-            # print('c', C)
-            # print('d', D)
-            # print('phi1', phihat[i][:])
-            phihat[i][:] = solve_tridiagonal(nypts, A, B, C, D)
-            # print('phi2', phihat[i][:])
+                B[j] += (1-mu0)*bigA0*xpts11 * (xpts10 + xpts01)
+                D[j] += (1-mu0)*bigA0*xpts11 * (phi[j, i+1]*xpts10 + phi[j, i-1]*xpts01)
+                B[j] += -mu1*bigA1*xpts01*xpts02
+                D[j] += -mu1*bigA1*xpts02*((phi[j][i-1]-phi[j][i-2])*xpts12 + phi[j][i-1]*xpts01)
 
-        # Zone 2 in front of the airfoil   
-        for i in range(nxpts2):
-            k2 = i + nxpts1 - 1
-            xpts10 = 1/(xpts[k2+1]-xpts[k2])
-            xpts11 = 1/(xpts[k2+1]-xpts[k2-1])
-            xpts01 = 1/(xpts[k2]-xpts[k2-1])
-            xpts02 = 1/(xpts[k2]-xpts[k2-2])
-            xpts12 = 1/(xpts[k2-1]-xpts[k2-2])
-
-            for j in range(1, nypts-1):
-                ypts10 = 1/(ypts[j+1]-ypts[j])
-                ypts11 = 1/(ypts[j+1]-ypts[j-1])
-                ypts01 = 1/(ypts[j]-ypts[j-1])
-
-                # Aij = A[i, j]
-                # muij = mu[i, j]
-                Aij = 1 - Minf**2 - (gamma+1)*Minf**2/Vinf*(phihat[k2+1][j] - phihat[k2-1][j])*xpts11
-                if Aij > 0: # subsonic
-                    muij = 0
-                elif Aij < 0: # supersonic
-                    muij = 1
-
-                # supersonic (DONT USE at i=1 index [i-2] will be negative)
-                # Aij1 = A[i-1, j]
-                # muij1 = mu[i-1, j]
-                Aij1 = 1 - Minf**2 - (gamma+1)*Minf**2/Vinf*(phihat[k2][j] - phihat[k2-2][j])*xpts02
-                if Aij1 > 0:  # subsonic
-                    muij1 = 0
-                elif Aij1 < 0: # supersonic
-                    muij1 = 1
-                
-                muij = 0
-                muij1 = 0
-
-                A[j-1] = ypts10*ypts11
-                B[j] = (muij-1)*Aij*(xpts10 + xpts01)*xpts11 + muij1*Aij1*xpts01*xpts02 - ypts10*ypts11 - ypts01*ypts11
-                C[j] = ypts01*ypts11
-                D[j] = (muij-1)*Aij*xpts11*(phihat[k2+1][j]*xpts10 + phihat[k2-1][j]*xpts01) - muij1*Aij1*xpts02*(-phihat[k2-1][j]*xpts01 + (-phihat[k2-1][j]+phihat[k2-2][j])*xpts12)
-
-            C[0] =-1 # bottom boundary condition
-            B[0] = 1 # bottom boundary condition
-            D[0] =-Vinf*dymin*(chord/2-xpts2[i])/np.sqrt(fairf**2-(xpts2[i]-chord/2)**2) # bottom boundary condition
-            A[-2] = 0 # top boundary condition
-            B[-1] = 1 # top boundary condition
-            D[-1] = phihat[k2, -1] # top boundary condition
-            phihat[k2][:] = solve_tridiagonal(nypts, A, B, C, D)
-            # print('zone2', k2, phihat[k2][:])
-
-        # Zone 3 behind the airfoil   
-        for i in range(nxpts3-2):
-            k3 = i + nxpts1 + nxpts2 - 1
-            xpts10 = 1/(xpts[k3+1]-xpts[k3])
-            xpts11 = 1/(xpts[k3+1]-xpts[k3-1])
-            xpts01 = 1/(xpts[k3]-xpts[k3-1])
-            xpts02 = 1/(xpts[k3]-xpts[k3-2])
-            xpts12 = 1/(xpts[k3-1]-xpts[k3-2])
-
-            for j in range(1, nypts-1):
-                ypts10 = 1/(ypts[j+1]-ypts[j])
-                ypts11 = 1/(ypts[j+1]-ypts[j-1])
-                ypts01 = 1/(ypts[j]-ypts[j-1])
-
-                # subsonic
-                # Aij = A[i, j]
-                # muij = mu[i, j]
-                Aij = 1 - Minf**2 - (gamma+1)*Minf**2/Vinf*(phihat[k3+1][j] - phihat[k3-1][j])*xpts11
-                if Aij > 0: # subsonic
-                    muij = 0
-                elif Aij < 0: # supersonic
-                    muij = 1
-                
-                # supersonic (DONT USE at i=1 index [i-2] will be negative)\
-                # Aij1 = A[i-1, j]
-                # muij1 = mu[i-1, j]
-                Aij1 = 1 - Minf**2 - (gamma+1)*Minf**2/Vinf*(phihat[k3][j] - phihat[k3-2][j])*xpts02
-                if Aij1 > 0:
-                    muij1 = 0
-                elif Aij1 < 0: # supersonic
-                    muij1 = 1
-
-                muij = 0
-                muij1 = 0
-
-                A[j-1] = ypts10*ypts11
-                B[j] = (muij-1)*Aij*(xpts10 + xpts01)*xpts11 + muij1*Aij1*xpts01*xpts02 - ypts10*ypts11 - ypts01*ypts11
-                C[j] = ypts01*ypts11
-                D[j] = (muij-1)*Aij*xpts11*(phihat[k3+1][j]*xpts10 + phihat[k3-1][j]*xpts01) - muij1*Aij1*xpts02*(-phihat[k3-1][j]*xpts01 + (-phihat[k3-1][j]+phihat[k3-2][j])*xpts12)
-
-            C[0] = -1 # bottom boundary condition
-            B[0] = 1 # bottom boundary condition
-            D[0] = 0 # bottom boundary condition
-            A[-2] = 0 # top boundary condition
-            B[-1] = 1 # top boundary condition
-            D[-1] = phihat[k3, -1] # top boundary condition
-            phihat[k3][:] = solve_tridiagonal(nypts, A, B, C, D)
-            # print(phihat[k3][:])
+            # Applying boundary conditions
+            if i < nxpts1: # in front of airfoil
+                C[0] = -1 # bottom boundary condition
+                B[0] = 1 # bottom boundary condition
+                D[0] = 0 # bottom boundary condition
+                A[-2] = 0 # top boundary condition
+                B[-1] = 1 # top boundary condition
+                D[-1] = phi[-1, i] # top boundary condition            
+            elif nxpts1 <= i <= nxpts1 + nxpts2 - 1: # on top of airfoil
+                C[0] =-1 # bottom boundary condition
+                B[0] = 1 # bottom boundary condition
+                D[0] =-Vinf*dymin*(chord/2-xpts[i])/np.sqrt(fairf**2-(xpts[i]-chord/2)**2) # bottom boundary condition
+                A[-2] = 0 # top boundary condition
+                B[-1] = 1 # top boundary condition
+                D[-1] = phi[-1, i] # top boundary condition
+            elif nxpts1 + nxpts2 - 1 <= i <= nxpts: # behind of airfoil
+                C[0] =-1 # bottom boundary condition
+                B[0] = 1 # bottom boundary condition
+                D[0] = 0 # bottom boundary condition
+                A[-2] = 0 # top boundary condition
+                B[-1] = 1 # top boundary condition
+                D[-1] = phi[-1, i] # top boundary condition
+            phi[:, i] = solve_tridiagonal(nypts, A, B, C, D)
 
         # Calculate residual
         for i in range(1, nxpts-1): # move across columns
@@ -177,25 +140,41 @@ def murman_cole(timesteps, Minf, xpts, ypts, phihat, xpts1, xpts2, xpts3, Vinf, 
             xpts01 = 1/(xpts[i]-xpts[i-1])
             xpts02 = 1/(xpts[i]-xpts[i-2])
             xpts12 = 1/(xpts[i-1]-xpts[i-2])
+
             for j in range(1, nypts-1): # move through columns
                 ypts10 = 1/(ypts[j+1]-ypts[j])
                 ypts11 = 1/(ypts[j+1]-ypts[j-1])
                 ypts01 = 1/(ypts[j]-ypts[j-1])
-                # hardcoded for tests
-                muij = 0
-                muij1 = 0
-                
-                Dxxa = (phihat[i+1][j] - phihat[i][j])*xpts10 - (phihat[i][j] - phihat[i-1][j])*xpts01
+
+                bigA0 = 1 - Minf**2 - (gamma+1)*Minf**2/Vinf*(phi[j][i+1] - phi[j][i-1])*xpts11
+                bigA1 = 1 - Minf**2 - (gamma+1)*Minf**2/Vinf*(phi[j][i] - phi[j][i-2])*xpts02
+                if bigA0 > 0:
+                    mu0 = 0
+                elif bigA0 <= 0:
+                    mu0 = 1
+
+                if bigA1 > 0:
+                    mu1 = 0
+                elif bigA1 <= 0:
+                    mu1 = 1
+
+                Dxxa = (phi[j, i+1]-phi[j, i])*xpts10 - (phi[j, i]-phi[j, i-1])*xpts01
                 Dxx = Dxxa*xpts11
 
-                Dyya = (phihat[i][j+1] - phihat[i][j])*ypts10 - (phihat[i][j] - phihat[i][j+1])*ypts01
+                Dxx1a = (phi[j][i] - phi[j][i-1])*xpts01 - (phi[j][i-1] - phi[j][i-2])*xpts12
+                Dxx1 = Dxx1a*xpts02
+
+                Dyya = (phi[j+1, i]-phi[j, i])*ypts10 - (phi[j, i]-phi[j-1, i])*ypts01
                 Dyy = Dyya*ypts11
 
-                Dxx1a = (phihat[i][j] - phihat[i-1][j])*xpts01 - (phihat[i-1][j] - phihat[i-2][j])*xpts12
-                Dxx1 = Dxx1a*xpts02
-                res1 = (1-muij)*Aij*Dxx + muij1*Aij1*Dxx1 + Dyy
-                res[i, j] = abs(res1)
-        residual[t] = np.max(np.max(res))
+                res[j, i] = (1-mu0)*bigA0*Dxx + mu1*bigA1*Dxx1 + Dyy
+        residual[t] = np.max(np.max(abs(res)))
+        print(residual[t])
+        
+    elapsed_time = time.time() - startlgs
+    if timing:
+        print('Line Gauss-Seidel Elapsed Time: {:.3}'.format(elapsed_time))
+
     return residual
 
 def main():
@@ -219,64 +198,60 @@ def main():
     # dydx = (chord/2-x)/np.sqrt(fairf**2-(x-chord/2)**2)
 
     ypts = stretch_mesh(dymin, ymax, ptsy)
-    xpts1 = np.flip(-1*stretch_mesh(dxmin, xmax, ptsx)) # in front of airfoil
+    xpts1 = -np.flip(stretch_mesh(dxmin, xmax, ptsx))[:-1] # in front of airfoil
     xpts2 = np.linspace(0, chord, ptsx2) # on airfoil
-    xpts3 = stretch_mesh(dxmin, xmax, ptsx) + 1 # behind airfoil
-    xpts = np.hstack((xpts1[0:-1], xpts2, xpts3[1:]))
-
+    xpts3 = stretch_mesh(dxmin, xmax, ptsx)[1:] + chord # behind airfoil
+    xpts = np.hstack((xpts1, xpts2, xpts3))
+    phi = np.zeros((len(ypts), len(xpts)))
+    Minf = 0.908
     Vinf = 1
-    densityinf = 1
-    gamma = 1.4
-    Minf = [.735, .908]
-    # Minf = [0.5]
-    pinf = 1/gamma/Minf[0]**2
-    
-    bigA = 1 - Minf[0]**2
-
-    phihat = np.ones((len(xpts), len(ypts))) # phihat is the disturbance in phi
+    ainf = Vinf/Minf
 
     xv, yv = np.meshgrid(xpts, ypts)
-    sc = plt.scatter(xv, yv, c=phihat[:, :len(xpts)])#, vmin=-30, vmax=30)
+    sc = plt.scatter(xv, yv, c=phi)#, vmin=-30, vmax=30)
     plt.colorbar(sc)
     plt.title("initial condition")
     plt.savefig("initial condition")
-    plt.close()
-    # plt.show()
-
-    time_steps = 400
-    residuallgs = murman_cole(time_steps, Minf[0], xpts, ypts, phihat, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord)
-
-    # u_adi = np.zeros_like(xpts)
-    # v_adi = np.zeros_like(xpts)
-    # for i in range(1, len(xpts)-1):
-    #     u_adi[i] = Vinf + (phihat[0, i+1] - phihat[0, i-1])/(xpts[i+1] - xpts[i-1])
-    #     v_adi[i] = (phihat[0, i] - phihat[1, i])/(ypts[0] - ypts[1])
-
-    # pressure_adi = pinf*(1-(gamma-1)/2*Minf[0]**2*((u_adi**2+v_adi**2)/Vinf**2-1))**(gamma/(gamma-1))
-    # cp_adi = 2*(pressure_adi-pinf)/densityinf/Vinf**2
-
-    # plt.plot(xpts, -cp_adi, marker='s', label='adi')
-    # plt.xlim([xpts1[-3], xpts3[3]])
-    # plt.ylim([-.35, .2])
-    # plt.xlabel('x')
-    # plt.ylabel('$-C_p$')
-    # plt.legend()
-    # plt.savefig('Exercise 6.1 Cps.png')
-    # # plt.close()
-    # plt.show()   
-
-    # sc = plt.scatter(xv, yv, c=phihat[:, :len(xpts)])#, vmin=-30, vmax=30)
-    # plt.colorbar(sc)
-    # plt.title("test")
-    # plt.savefig("test")
-    # # plt.close()
-    # plt.show()
-
-    plt.semilogy(np.linspace(0, time_steps-1, time_steps), residuallgs, label='lgs', linestyle='--')
-    plt.legend()
-    # plt.savefig('Exercise 5.6 Residuals.png')
     # plt.close()
     plt.show()
+
+    time_steps = 400
+    residualmc = murman_cole(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
+
+    u = np.zeros_like(phi)
+    v = np.zeros_like(phi)
+    vel = np.zeros_like(phi)
+    mach = np.zeros_like(phi)
+    for i in range(1, len(xpts)-1):
+        for j in range(1, len(ypts)-1):
+            u[j, i] = (phi[j, i+1] - phi[j, i-1])/(xpts[i+1] - xpts[i-1])+Vinf
+            v[j, i] = (phi[j, i] - phi[j+1, i])/(ypts[j] - ypts[j+1])
+            vel[j, i] = np.sqrt(u[j, i]**2 + v[j, i]**2)
+            mach[j, i] = vel[j, i]/ainf
+   
+    # Plot the residual
+    plt.semilogy(np.linspace(0, time_steps-1, time_steps), residualmc, label='lgs', linestyle='-')
+    plt.legend()
+    plt.show()
+
+    cp = calc_cp(phi, xpts, ypts[0]-ypts[1], Minf, type='small')
+    plt.plot(xpts, -cp, marker='.', label='pjc')
+    plt.xlim([-.25, 1.25])
+    plt.title(f'$C_p$ at Mach={Minf}')
+    plt.show()
+
+    if Minf < .8:
+        mach_levels = [.7, .75, .8]
+    else:
+        mach_levels = [1, 1.1, 1.2, 1.3]
+
+    fig, ax = plt.subplots()
+    ax.contour(xv, yv, mach, mach_levels)
+    ax.set_title("Mach")
+    ax.set_xlim([-.5, 1.5])
+    ax.set_ylim([0, 1.75])
+    # plt.close()
+    plt.show()  
 
 if __name__ == '__main__':
     main()

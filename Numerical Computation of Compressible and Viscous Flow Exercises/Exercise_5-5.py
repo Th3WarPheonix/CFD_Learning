@@ -211,11 +211,17 @@ def line_guass_seidel(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vi
 
     bigA = 1 - Minf**2
 
-    array_len = len(ypts)
-    A = np.ones(array_len) # phi[i-1]
-    B = np.ones(array_len) # phi[i]
-    C = np.ones(array_len) # phi[i+1]
-    D = np.ones(array_len) # known
+    nypts = len(ypts)
+    nxpts = len(xpts)
+    nxpts1 = len(xpts1)
+    nxpts2 = len(xpts2)
+    nxpts3 = len(xpts3)
+
+    # Solving one column of points at a time
+    A = np.ones(nypts) # phi[i-1]
+    B = np.ones(nypts) # phi[i]
+    C = np.ones(nypts) # phi[i+1]
+    D = np.ones(nypts) # known
 
     startlgs = time.time()
     residuallgs = np.ones(time_steps)
@@ -223,14 +229,20 @@ def line_guass_seidel(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vi
     for t in range(time_steps):
         
         # Zone 1 in front of the airfoil
-        for i in range(1, len(xpts1)-1): # move across columns
-            helpx = bigA/(xpts[i+1]-xpts[i-1]) * (1/(xpts[i+1]-xpts[i]) + 1/(xpts[i]-xpts[i-1]))
-            for j in range(1, len(ypts)-1): # move through columns
-                helpy = 1/(ypts[j+1]-ypts[j-1]) * (1/(ypts[j+1]-ypts[j]) + 1/(ypts[j]-ypts[j-1]))
-                A[j-1] = -1/((ypts[j]-ypts[j-1]) * (ypts[j+1]-ypts[j-1]))
-                B[j] = helpx + helpy
-                C[j] = -1/((ypts[j+1]-ypts[j]) * (ypts[j+1]-ypts[j-1]))
-                D[j] = bigA/(xpts[i+1]-xpts[i-1]) * (phi[j, i+1]/(xpts[i+1]-xpts[i]) + phi[j, i-1]/(xpts[i]-xpts[i-1]))
+        for i in range(1, nxpts1-1): # move across columns
+            xpts10 = 1/(xpts[i+1]-xpts[i])
+            xpts11 = 1/(xpts[i+1]-xpts[i-1])
+            xpts01 = 1/(xpts[i]-xpts[i-1])
+
+            for j in range(1, nypts-1): # move through columns
+                ypts10 = 1/(ypts[j+1]-ypts[j])
+                ypts11 = 1/(ypts[j+1]-ypts[j-1])
+                ypts01 = 1/(ypts[j]-ypts[j-1])
+
+                A[j-1] = -ypts01 * ypts11
+                B[j] = bigA*xpts11 * (xpts10 + xpts01) + ypts11 * (ypts10 + ypts01)
+                C[j] = -ypts10 * ypts11
+                D[j] = bigA*xpts11 * (phi[j, i+1]*xpts10 + phi[j, i-1]*xpts01)
 
             C[0] = -1 # bottom boundary condition
             B[0] = 1 # bottom boundary condition
@@ -238,18 +250,24 @@ def line_guass_seidel(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vi
             A[-2] = 0 # top boundary condition
             B[-1] = 1 # top boundary condition
             D[-1] = phi[-1, i] # top boundary condition
-            phi[:, i] = solve_tridiagonal(len(B), A, B, C, D)
+            phi[:, i] = solve_tridiagonal(nypts, A, B, C, D)
 
         # Zone 2 on the airfoil
-        for i in range(len(xpts2)): # move across columns
-            k2 = i + len(xpts1)-1
-            helpx = bigA/(xpts[k2+1]-xpts[k2-1]) * (1/(xpts[k2+1]-xpts[k2]) + 1/(xpts[k2]-xpts[k2-1]))
-            for j in range(1, len(ypts)-1): # move through columns
-                helpy = 1/(ypts[j+1]-ypts[j-1]) * (1/(ypts[j+1]-ypts[j]) + 1/(ypts[j]-ypts[j-1]))
-                A[j-1] = -1/((ypts[j]-ypts[j-1]) * (ypts[j+1]-ypts[j-1]))
-                B[j] = helpx + helpy
-                C[j] = -1/((ypts[j+1]-ypts[j]) * (ypts[j+1]-ypts[j-1]))
-                D[j] = bigA/(xpts[k2+1]-xpts[k2-1]) * (phi[j, k2+1]/(xpts[k2+1]-xpts[k2]) + phi[j, k2-1]/(xpts[k2]-xpts[k2-1]))
+        for i in range(nxpts2): # move across columns
+            k2 = i + nxpts1 -1
+            xpts10 = 1/(xpts[k2+1]-xpts[k2])
+            xpts11 = 1/(xpts[k2+1]-xpts[k2-1])
+            xpts01 = 1/(xpts[k2]-xpts[k2-1])
+
+            for j in range(1, nypts-1): # move through columns
+                ypts10 = 1/(ypts[j+1]-ypts[j])
+                ypts11 = 1/(ypts[j+1]-ypts[j-1])
+                ypts01 = 1/(ypts[j]-ypts[j-1])
+
+                A[j-1] = -ypts01 * ypts11
+                B[j] = bigA*xpts11 * (xpts10 + xpts01) + ypts11 * (ypts10 + ypts01)
+                C[j] = -ypts10 * ypts11
+                D[j] = bigA*xpts11 * (phi[j, k2+1]*xpts10 + phi[j, k2-1]*xpts01)
 
             C[0] =-1 # bottom boundary condition
             B[0] = 1 # bottom boundary condition
@@ -257,18 +275,24 @@ def line_guass_seidel(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vi
             A[-2] = 0 # top boundary condition
             B[-1] = 1 # top boundary condition
             D[-1] = phi[-1, k2] # top boundary condition
-            phi[:, k2] = solve_tridiagonal(len(B), A, B, C, D)
+            phi[:, k2] = solve_tridiagonal(nypts, A, B, C, D)
 
         # Zone 3 behind the airfoil
-        for i in range(len(xpts3)-2): # move across columns
-            k3 = i + len(xpts1) + len(xpts2) - 1
-            helpx = bigA/(xpts[k3+1]-xpts[k3-1]) * (1/(xpts[k3+1]-xpts[k3]) + 1/(xpts[k3]-xpts[k3-1]))
-            for j in range(1, len(ypts)-1): # move through columns
-                helpy = 1/(ypts[j+1]-ypts[j-1]) * (1/(ypts[j+1]-ypts[j]) + 1/(ypts[j]-ypts[j-1]))
-                A[j-1] = -1/( (ypts[j]-ypts[j-1]) * (ypts[j+1]-ypts[j-1]) )
-                B[j] = helpx + helpy
-                C[j] = -1/((ypts[j+1]-ypts[j]) * (ypts[j+1]-ypts[j-1]))
-                D[j] = bigA/(xpts[k3+1]-xpts[k3-1]) * (phi[j, k3+1]/(xpts[k3+1]-xpts[k3]) + phi[j, k3-1]/(xpts[k3]-xpts[k3-1]))
+        for i in range(nxpts3-2): # move across columns
+            k3 = i + nxpts1 + nxpts2 - 1
+            xpts10 = 1/(xpts[k3+1]-xpts[k3])
+            xpts11 = 1/(xpts[k3+1]-xpts[k3-1])
+            xpts01 = 1/(xpts[k3]-xpts[k3-1])
+
+            for j in range(1, nypts-1): # move through columns
+                ypts10 = 1/(ypts[j+1]-ypts[j])
+                ypts11 = 1/(ypts[j+1]-ypts[j-1])
+                ypts01 = 1/(ypts[j]-ypts[j-1])
+
+                A[j-1] = -ypts01 * ypts11
+                B[j] = bigA*xpts11 * (xpts10 + xpts01) + ypts11 * (ypts10 + ypts01)
+                C[j] = -ypts10 * ypts11
+                D[j] = bigA*xpts11 * (phi[j, k3+1]*xpts10 + phi[j, k3-1]*xpts01)
 
             C[0] =-1 # bottom boundary condition
             B[0] = 1 # bottom boundary condition
@@ -276,19 +300,38 @@ def line_guass_seidel(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vi
             A[-2] = 0 # top boundary condition
             B[-1] = 1 # top boundary condition
             D[-1] = phi[-1, k3] # top boundary condition
-            phi[:, k3] = solve_tridiagonal(len(B), A, B, C, D)
+            phi[:, k3] = solve_tridiagonal(nypts, A, B, C, D)
 
         # Calculate residual
-        for i in range(1, len(xpts)-1): # move across columns
-            for j in range(1, len(ypts)-1): # move through columns
-                helpx1 = 2*bigA*((phi[j, i+1]-phi[j, i])/(xpts[i+1] - xpts[i]) - (phi[j, i]-phi[j, i-1])/(xpts[i] - xpts[i-1]))/(xpts[i+1] - xpts[i-1])
-                helpy1 = 2*((phi[j+1, i]-phi[j, i])/(ypts[j+1] - ypts[j]) - (phi[j, i]-phi[j-1, i])/(ypts[j] - ypts[j-1]))/(ypts[j+1] - ypts[j-1])
-                res[j, i] = helpx1 + helpy1
-        residuallgs[t] = np.max(np.max(res))
+        for i in range(1, nxpts-1): # move across columns
+            xpts10 = 1/(xpts[i+1]-xpts[i])
+            xpts11 = 1/(xpts[i+1]-xpts[i-1])
+            xpts01 = 1/(xpts[i]-xpts[i-1])
 
+            for j in range(1, nypts-1): # move through columns
+                ypts10 = 1/(ypts[j+1]-ypts[j])
+                ypts11 = 1/(ypts[j+1]-ypts[j-1])
+                ypts01 = 1/(ypts[j]-ypts[j-1])
+
+                Dxxa = (phi[j, i+1]-phi[j, i])*xpts10 - (phi[j, i]-phi[j, i-1])*xpts01
+                Dxx = Dxxa*xpts11
+                Dyya = (phi[j+1, i]-phi[j, i])*ypts10 - (phi[j, i]-phi[j-1, i])*ypts01
+                Dyy = Dyya*ypts11
+                res[j, i] = 2*bigA*Dxx + 2*Dyy
+        residuallgs[t] = np.max(np.max(abs(res)))
+        print(residuallgs[t])
+
+        # xv, yv = np.meshgrid(xpts, ypts)
+        # sc = plt.scatter(xv, yv, c=res)#, vmin=-30, vmax=30)
+        # plt.colorbar(sc)
+        # plt.title(f'{t} res')
+        # # plt.close()
+        # plt.show()
+        
     elapsed_time = time.time() - startlgs
     if timing:
         print('Line Gauss-Seidel Elapsed Time: {:.3}'.format(elapsed_time))
+
     return residuallgs
 
 def ADI(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=False):
@@ -482,6 +525,7 @@ def main():
     xpts3 = stretch_mesh(dxmin, xmax, ptsx) + 1 # behind airfoil
     xpts = np.hstack((xpts1[0:-1], xpts2, xpts3[1:]))
 
+
     pinf = 1
     densityinf = 1
     gamma = 1.4
@@ -506,8 +550,8 @@ def main():
     plt.colorbar(sc)
     plt.title("initial condition")
     plt.savefig("initial condition")
-    plt.close()
-    # plt.show()
+    # plt.close()
+    plt.show()
 
     time_steps = 200
     # residualpjc, phif = point_jacobi(time_steps, Minf, xpts, ypts, phipjc, phipjc2, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
@@ -577,14 +621,12 @@ def main():
     # plt.close()
     # plt.show()
 
-    # sc = plt.scatter(xv, yv, c=phiadi[:, :len(xpts)])#, vmin=-30, vmax=30)
-    # plt.plot(x, y)
-    # plt.colorbar(sc)
-    # plt.title('t={} full adi'.format(time_steps))
-    # plt.savefig('t={} full scatter adi'.format(time_steps))
-    # # plt.close()
-    # plt.show()
-
+    xv, yv = np.meshgrid(xpts, ypts)
+    sc = plt.scatter(xv, yv, c=philgs[:, :len(xpts)])#, vmin=-30, vmax=30)
+    plt.colorbar(sc)
+    plt.show()
+    
+    # Plot the residual
     # plt.semilogy(np.linspace(0, time_steps-1, time_steps), residualpjc, label='pjc', linestyle='--')
     # plt.semilogy(np.linspace(0, time_steps-1, time_steps), residualpgs, label='pgs', linestyle='-.')
     # plt.semilogy(np.linspace(0, time_steps-1, time_steps), residualljc, label='ljc', linestyle=':')
