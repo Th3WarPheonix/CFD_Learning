@@ -362,6 +362,7 @@ def ADI(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vinf, dymin, fai
         # Step 1
         # Zone 1 in front of the airfoil
         for i in range(1, nxpts1-1): # move across columns
+            # print(1, 1, xpts[i])
             helpx = bigA/(xpts[i+1]-xpts[i-1]) * (1/(xpts[i+1]-xpts[i]) + 1/(xpts[i]-xpts[i-1]))
             for j in range(1, nypts-1): # move through columns
                 helpy = 1/(ypts[j+1]-ypts[j-1]) * (1/(ypts[j+1]-ypts[j]) + 1/(ypts[j]-ypts[j-1]))
@@ -381,6 +382,7 @@ def ADI(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vinf, dymin, fai
         # Zone 2 on the airfoil
         for i in range(nxpts2): # move across columns
             k2 = i + nxpts1-1
+            # print(1, 2, xpts[k2])
             helpx = bigA/(xpts[k2+1]-xpts[k2-1]) * (1/(xpts[k2+1]-xpts[k2]) + 1/(xpts[k2]-xpts[k2-1]))
             for j in range(1, nypts-1): # move through columns
                 helpy = 1/(ypts[j+1]-ypts[j-1]) * (1/(ypts[j+1]-ypts[j]) + 1/(ypts[j]-ypts[j-1]))
@@ -396,10 +398,10 @@ def ADI(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vinf, dymin, fai
             B[-1] = 1 # top boundary condition
             D[-1] = phi[-1, k2] # top boundary condition
             phi[:, k2] = solve_tridiagonal(len(B), A, B, C, D)
-
         # Zone 3 behind the airfoil
         for i in range(nxpts3-2): # move across columns
             k3 = i + nxpts1 + nxpts2 - 1
+            # print(1, 3, xpts[k3])
             helpx = bigA/(xpts[k3+1]-xpts[k3-1]) * (1/(xpts[k3+1]-xpts[k3]) + 1/(xpts[k3]-xpts[k3-1]))
             for j in range(1, nypts-1): # move through columns
                 helpy = 1/(ypts[j+1]-ypts[j-1]) * (1/(ypts[j+1]-ypts[j]) + 1/(ypts[j]-ypts[j-1]))
@@ -436,10 +438,13 @@ def ADI(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vinf, dymin, fai
             phi[j, :] = solve_tridiagonal(len(By), Ay, By, Cy, Dy)
         
         # Bottom boundary conditions
+        # print(xpts[1:nxpts1-1])
+        # print(xpts[nxpts1-1:nxpts1+nxpts2-1])
+        # print(xpts[nxpts1+nxpts2-1:nxpts1+nxpts2+nxpts3-3])
         phi[0, 1:nxpts1-1] = phi[1, 1:nxpts1-1] # in front of the airfoil
         phi[0, nxpts1-1:nxpts1+nxpts2-1] = phi[1, nxpts1-1:nxpts1+nxpts2-1] + -Vinf*dymin*(chord/2-xpts2)/np.sqrt(fairf**2-(xpts2-chord/2)**2) # on the airfoil
-        phi[0, nxpts1+nxpts2-1:nxpts1+nxpts2+nxpts3-2] = phi[1, nxpts1+nxpts2-1:nxpts1+nxpts2+nxpts3-2] # behind the airfoil
-
+        phi[0, nxpts1+nxpts2-1:nxpts1+nxpts2+nxpts3-3] = phi[1, nxpts1+nxpts2-1:nxpts1+nxpts2+nxpts3-3] # behind the airfoil
+        
         # Calculate residual
         for i in range(1, nxpts-1): # move across columns
             for j in range(1, nypts-1): # move through columns
@@ -447,6 +452,7 @@ def ADI(time_steps, Minf, xpts, ypts, phi, xpts1, xpts2, xpts3, Vinf, dymin, fai
                 helpy1 = 2*((phi[j+1, i]-phi[j, i])/(ypts[j+1] - ypts[j]) - (phi[j, i]-phi[j-1, i])/(ypts[j] - ypts[j-1]))/(ypts[j+1] - ypts[j-1])
                 res[j, i] = helpx1 + helpy1
         residualadi[t] = np.max(np.max(res))
+        print(residualadi[t])
 
     elapsed_time = time.time() - startadi
     if timing:
@@ -553,11 +559,11 @@ def main():
     # plt.close()
     plt.show()
 
-    time_steps = 200
+    time_steps = 1000
     # residualpjc, phif = point_jacobi(time_steps, Minf, xpts, ypts, phipjc, phipjc2, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
     # residualpgs = point_guass_seidel(time_steps, Minf, xpts, ypts, phipgs, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
     # residualljc, phif2 = line_jacobi(time_steps, Minf, xpts, ypts, philjc, philjc2, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
-    residuallgs = line_guass_seidel(time_steps, Minf, xpts, ypts, philgs, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
+    residuallgs = ADI(time_steps, Minf, xpts, ypts, philgs, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
     # residualadi = ADI(time_steps, Minf, xpts, ypts, phiadi, xpts1, xpts2, xpts3, Vinf, dymin, fairf, chord, timing=True)
 
     # # For use to validate Prandtly-Glauert correction

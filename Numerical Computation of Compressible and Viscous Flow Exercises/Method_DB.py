@@ -2,6 +2,56 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+def calc_cp(phi, xpts, dy, Minf, type='full', gamma=1.4):
+    """Calculates the coefficient of pressure along 1 row of points
+    based on the potential equations.
+
+    Parameters
+    ----------
+    phi : the values of the potential for at least the row of points on 
+        the surface and the row of points above the surface
+    xpts : the array of x values
+    dy : the distance between the first row and second row of points (y[0]-y[1])
+    Minf : freestream Mach number
+    type : "full" for full potential, "small" for small disturbance
+    """
+    densityinf = 1
+    if type == 'full':
+        pinf = 1
+        ainf = np.sqrt(gamma*pinf/densityinf)
+        Vinf = Minf*ainf
+    else:
+        pinf = 1/gamma/Minf**2
+        Vinf = 1
+    
+    v = np.zeros_like(xpts)
+    u = np.zeros_like(xpts)
+    for i in range(1, len(xpts)-1):
+        v[i] = (phi[0, i] - phi[1, i])/dy
+        u[i] = (phi[0, i+1] - phi[0, i-1])/(xpts[i+1] - xpts[i-1])+Vinf
+
+    pressure = pinf*(1-(gamma-1)/2*Minf**2*((u**2+v**2)/Vinf**2-1))**(gamma/(gamma-1))
+    cp = 2*(pressure-pinf)/densityinf/Vinf**2
+    return cp
+
+def plot_residual(xpts, ypts, res, t=None):
+    """Plot residual at each iteration or at the beginning or end
+    
+    Parameters
+    ----------
+    xpts : matrix of same size as residual of x values
+    ypts : matrix of same size as residual of y values
+    res : matrix of resdiual values
+    t : optionally make the time step the title of the figure"""
+    xv, yv = np.meshgrid(xpts, ypts)
+    sc = plt.scatter(xv, yv, c=res)
+    plt.colorbar(sc)
+    if t:
+        plt.title(f'{t} res')
+    else:
+        plt.title(f'Residual')
+    plt.show() 
+
 def solve_tridiagonal(n:int, A, B, C, D):
     """Solves tridiagonal matrix using the Thomas algorithm in O(n) time
     All vectors should be the same length. The last element of A and C

@@ -1,8 +1,62 @@
 
-import numpy as np
-import matplotlib.pyplot as plt
-from Method_DB import solve_tridiagonal, stretch_mesh
-import time
+def solve_tridiagonal(n:int, A, B, C, D):
+    """Solves tridiagonal matrix using the Thomas algorithm in O(n) time
+    All vectors should be the same length. The last element of A and C
+    are not used.
+    
+    Parameters
+    ----------
+    n : size of square array
+    A : lower diagonal of coefficient matrix
+    B : main  diagonal of coefficient matrix
+    C : upper diagonal of coefficient matrix
+    D : the known vector"""
+
+    G = np.empty_like(C)
+    R = np.empty_like(D)
+    X = np.empty_like(D)
+
+    G[0] = C[0]/B[0]
+    R[0] = D[0]/B[0]
+
+    for i in range(1, n-1):
+        G[i] = C[i]/(B[i] - A[i-1]*G[i-1])
+        R[i] = (D[i] - A[i-1]*R[i-1]) / (B[i] - A[i-1]*G[i-1])
+    R[i+1] = (D[i+1] - A[i]*R[i]) / (B[i+1] - A[i]*G[i])
+    X[i+1] = R[i+1]
+    for i in range(n-2, -1, -1):
+        X[i] = R[i] - G[i]*X[i+1]
+
+    return X
+
+def stretch_mesh(dymin, ymax, numpts):
+    """
+    Implements Rakich Stretching function on pg 78 (section 5.3.1).
+    Function returns points assuming a stretch from 0 to ymax
+
+    Parameters
+    ----------
+    dymin : smallest y2-y1 distance from which point spacing will only
+    increase
+    ymax : distnace over which the stretch occurs
+    numpts : number of points in stretch
+    """
+    ys = np.zeros(numpts)
+
+    kold = 0
+    knew = 1
+    a = 1/(numpts-1)
+    while abs(kold - knew) > 1e-6:
+        kold = knew
+        fcn = dymin - ymax*(np.exp(kold*a)-1)/(np.exp(kold)-1)
+        dfcn = -ymax*((a-1)*np.exp(a*kold+kold)-a*np.exp(a*kold)+np.exp(kold))/(np.exp(kold)-1)**2
+        knew = kold - fcn/dfcn
+
+    for j in range(1, numpts):
+        a = (j+1-1)/(numpts-1)
+        ys[j] = ys[0] + ymax*(np.exp(kold*a)-1)/(np.exp(kold)-1)
+
+    return ys
 
 def calc_cp(phi, xpts, dy, Minf, type='full', gamma=1.4):
     """Calculates the coefficient of pressure along 1 row of points
@@ -259,5 +313,5 @@ def main():
     # # plt.close()
     # plt.show()
 
-if __name__ == '__main__':
-    main()
+int main(){
+}
